@@ -4,8 +4,8 @@
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);  // LCD config (address 0x27, 16x2 display)
 
-#define SDA_PIN 2
-#define SCL_PIN 4
+#define SDA_PIN 15
+#define SCL_PIN 14
 
 #define RED_LED 22
 #define GREEN_LED 23
