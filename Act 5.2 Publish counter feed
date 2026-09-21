@@ -1,0 +1,48 @@
+#include <WiFi.h>
+#include "Adafruit_MQTT.h"
+#include "Adafruit_MQTT_Client.h"
+
+// Wi-Fi and Adafruit IO credentials
+#define WIFI_SSID     "    "  // WIFI SSID
+#define WIFI_PASS     "  " //WIFI PASSWORD
+#define AIO_SERVER    "io.adafruit.com"
+#define AIO_PORT      1883
+#define AIO_USER      "     "// adafruit username
+#define AIO_KEY       "         "//adafruit key
+
+// WiFi and MQTT clients
+WiFiClient client;
+Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_PORT, AIO_USER, AIO_KEY);
+Adafruit_MQTT_Publish counterFeed = Adafruit_MQTT_Publish(&mqtt, AIO_USER "/feeds/counter");
+
+int count = 0;
+
+void setup() {
+  Serial.begin(115200);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500); Serial.print(".");
+  }
+  Serial.println("\nWiFi connected");
+}
+
+void loop() {
+  if (!mqtt.connected()) mqtt.connect();
+
+  if (count < 10) {
+    count++;
+  } else {
+    count = 0;
+  }
+
+  if (counterFeed.publish(count)) {
+    Serial.print("Published count: ");
+    Serial.println(count);
+  } else {
+    Serial.println("Publish failed");
+  }
+
+  delay(3000); // wait 3 seconds
+}
+

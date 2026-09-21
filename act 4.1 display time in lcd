@@ -1,0 +1,39 @@
+#include <WiFi.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <time.h>
+
+// Wi-Fi credentials
+const char* ssid = "   "; // WIFI SSID
+const char* password = "    ";//WIFI PASSWORD
+
+// LCD setup (change address if needed)
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(21, 22);     // SDA 21,SCL 22 ESP32 I2C pins
+  lcd.init();
+  lcd.backlight();
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+  }
+
+  // Set IST timezone (GMT+5:30 = 19800 seconds)
+  configTime(19800, 0, "pool.ntp.org");
+}
+
+void loop() {
+  struct tm timeinfo;
+  if (getLocalTime(&timeinfo)) {
+    lcd.setCursor(0, 0);
+    lcd.printf("Time: %02d:%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+  } else {
+    lcd.setCursor(0, 0);
+    lcd.print("Time not set");
+  }
+  delay(1000);
+}
+

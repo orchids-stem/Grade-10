@@ -1,0 +1,59 @@
+#include <Wire.h>
+#include <Adafruit_BMP085.h>
+#include <LiquidCrystal_I2C.h>
+
+// Custom I2C pins for ESP32
+#define SDA_PIN 15
+#define SCL_PIN 14
+
+// Initialize LCD (I2C address 0x27, 16x2)
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// Initialize BMP180 (uses Adafruit_BMP085 library)
+Adafruit_BMP085 bmp;
+
+void setup() {
+  Serial.begin(115200);
+
+  // Initialize I2C with custom SDA and SCL pins
+  Wire.begin(SDA_PIN, SCL_PIN);
+
+  // Initialize LCD
+  lcd.begin(16,2);
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("LCD I2C Module");
+  delay(2000);
+  lcd.setCursor(0, 1);
+  lcd.print("ok");
+  delay(2000);
+  lcd.clear();
+
+  // Initialize BMP180 sensor
+  if (!bmp.begin()) {
+    Serial.println("Could not find valid BMP180 sensor, please check wiring!");
+    lcd.setCursor(0, 0);
+    lcd.print("Sensor Error!");
+    while (1);  // Stop here if sensor not found
+  }
+
+  // Optional: test write
+  lcd.setCursor(10, 0);
+  lcd.print("C"); // Just prints unit "C"
+  delay(500);
+}
+
+void loop() {
+  // Read temperature from BMP180
+  float tempe = bmp.readTemperature();
+
+  // Display temperature on LCD
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Temp:");
+  lcd.print(tempe);
+  lcd.print(" C");
+
+  delay(2000); // Wait before next update
+}
+

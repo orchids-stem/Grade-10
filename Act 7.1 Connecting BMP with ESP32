@@ -1,0 +1,106 @@
+#include <WiFi.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include "Adafruit_MQTT.h"
+#include "Adafruit_MQTT_Client.h"
+#include <time.h>
+
+// LCD + LEDs
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+#define RED_LED 0
+#define GREEN_LED 2
+
+// WiFi + Adafruit IO
+#define WIFI_SSID "    	"// wifi ssid
+#define WIFI_PASS "    	"// wifi password
+#define AIO_SERVER "io.adafruit.com"
+#define AIO_SERVERPORT 1883
+#define AIO_USERNAME "		"// adafruit username
+#define AIO_KEY "		"// adafruit key
+
+WiFiClient client;
+Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
+
+// Feeds
+Adafruit_MQTT_Subscribe feedTemp(&mqtt, AIO_USERNAME "/feeds/temperature");
+Adafruit_MQTT_Subscribe feedPress(&mqtt, AIO_USERNAME "/feeds/pressure");
+Adafruit_MQTT_Subscribe feedAlt(&mqtt, AIO_USERNAME "/feeds/altitude");
+
+Adafruit_MQTT_Publish pubTemp(&mqtt, AIO_USERNAME "/feeds/temperature");
+Adafruit_MQTT_Publish pubPress(&mqtt, AIO_USERNAME "/feeds/pressure");
+Adafruit_MQTT_Publish pubAlt(&mqtt, AIO_USERNAME "/feeds/altitude");
+
+// Time (IST +5:30)
+const long gmtOffset_sec = 19800;
+
+float temp=0, press=0, alt=0;
+unsigned long lastLCD=0, lastPub=0;
+int lcdState=0;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(RED_LED, OUTPUT); pinMode(GREEN_LED, OUTPUT);
+  Wire.begin(15, 14); lcd.init(); lcd.backlight();
+
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
+  Serial.println("\nWiFi Connected!");
+
+  mqtt.subscribe(&feedTemp); mqtt.subscribe(&feedPress); mqtt.subscribe(&feedAlt);
+  configTime(gmtOffset_sec, 0, "pool.ntp.org");
+}
+
+void loop() {
+  MQTT_connect();
+
+  // Publish dummy values every 5 sec
+  if (millis()-lastPub > 5000) {
+    lastPub = millis();
+    float t = random(20,30);    // Temp in °C
+    float p = random(1000,1020); // Pressure in hPa
+    float a = random(10,100);   // Altitude in m
+    pubTemp.publish(t); pubPress.publish(p); pubAlt.publish(a);
+    Serial.printf("Published -> Temp: %.1fC, Press: %.0fhPa, Alt: %.1fm\n", t,p,a);
+  }
+
+  // Read subscription
+  Adafruit_MQTT_Subscribe *sub = mqtt.readSubscription(100);
+  if (sub == &feedTemp) {
+    temp = atof((char*)feedTemp.lastread);
+    Serial.printf("Received Temp: %.1f C\n", temp);
+    digitalWrite(RED_LED, temp>=24); digitalWrite(GREEN_LED, temp<24);
+  } else if (sub == &feedPress) {
+    press = atof((char*)feedPress.lastread);
+    Serial.printf("Received Pressure: %.0f hPa\n", press);
+  } else if (sub == &feedAlt) {
+    alt = atof((char*)feedAlt.lastread);
+    Serial.printf("Received Altitude: %.1f m\n", alt);
+  }
+
+  // LCD cycle every 3 sec
+  if (millis()-lastLCD > 3000) {
+    lastLCD = millis(); lcd.clear();
+    if (lcdState==0) lcd.printf("Temp: %.1fC", temp);
+    else if (lcdState==1) lcd.printf("Press: %.0fhPa", press);
+    else if (lcdState==2) lcd.printf("Alt: %.1fm", alt);
+    else {
+      struct tm t; 
+      if (getLocalTime(&t)) {
+        char buf[9]; strftime(buf, sizeof(buf), "%H:%M:%S", &t);
+        lcd.print("Time: "); lcd.print(buf);
+        Serial.print("Time: "); Serial.println(buf);
+      }
+    }
+    lcdState=(lcdState+1)%4;
+  }
+}
+
+void MQTT_connect() {
+  if (mqtt.connected()) return;
+  while (mqtt.connect() != 0) {
+    Serial.println("Retrying MQTT...");
+    mqtt.disconnect(); delay(5000);
+  }
+  Serial.println("MQTT Connected!");
+}
+

@@ -1,0 +1,119 @@
+#include <Wire.h>
+#include <WiFi.h>
+#include <WiFiUdp.h>
+#include <NTPClient.h>
+#include <LiquidCrystal_I2C.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP085.h>
+#include "Adafruit_MQTT.h"
+#include "Adafruit_MQTT_Client.h"
+
+// WiFi credentials
+#define WIFI_SSID "   "// wifi ssid
+#define WIFI_PASS "     "//wifi password
+
+// Adafruit IO
+#define AIO_SERVER      "io.adafruit.com"
+#define AIO_SERVERPORT  1883
+#define AIO_USERNAME    "     "//adafruit username
+#define AIO_KEY         "          "//adafruit key
+
+// MQTT setup
+WiFiClient client;
+Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
+Adafruit_MQTT_Publish tempFeed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/temperature");
+Adafruit_MQTT_Publish pressFeed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/pressure");
+Adafruit_MQTT_Publish altFeed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/altitude");
+
+// NTP time setup
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 19800, 60000);  // +5.5 hrs IST
+
+// LCD & BMP180 setup
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+Adafruit_BMP085 bmp;
+
+// LEDs
+#define RED_LED 12
+#define GREEN_LED 27
+
+void setup() {
+  Serial.begin(115200);
+
+  // Setup LCD and LEDs
+  lcd.begin(16,2);
+  lcd.backlight();
+  pinMode(RED_LED, OUTPUT);
+  pinMode(GREEN_LED, OUTPUT);
+
+  // Connect to WiFi
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500); Serial.print(".");
+  }
+  Serial.println("WiFi connected");
+
+  // Start sensor and time
+  if (!bmp.begin()) {
+    Serial.println("BMP180 not found");
+    while (1);
+  }
+
+  timeClient.begin();
+}
+
+void loop() {
+  timeClient.update();
+
+  float temp = bmp.readTemperature();
+  float pressure = bmp.readPressure() / 100.0F;  // hPa
+  float altitude = bmp.readAltitude();
+
+  // Show time and date
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(timeClient.getFormattedTime());
+  lcd.setCursor(0, 1);
+  lcd.print("T:");
+  lcd.print(temp);
+  lcd.print(" P:");
+  lcd.print((int)pressure);
+  delay(3000);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Alt: ");
+  lcd.print((int)altitude);
+  lcd.print("m");
+  delay(3000);
+
+  // LED control
+  if (temp > 30.0) {
+    digitalWrite(RED_LED, HIGH);
+    digitalWrite(GREEN_LED, LOW);
+  } else {
+    digitalWrite(RED_LED, LOW);
+    digitalWrite(GREEN_LED, HIGH);
+  }
+
+  // MQTT reconnect
+  if (!mqtt.connected()) {
+    reconnectMQTT();
+  }
+
+  // Publish to Adafruit IO
+  tempFeed.publish(temp);
+  pressFeed.publish(pressure);
+  altFeed.publish(altitude);
+
+  delay(10000); // avoid Adafruit IO throttle
+}
+
+void reconnectMQTT() {
+  int8_t ret;
+  while ((ret = mqtt.connect()) != 0) {
+    Serial.println(mqtt.connectErrorString(ret));
+    delay(5000);
+  }
+  Serial.println("MQTT Connected!");
+}
