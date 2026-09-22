@@ -9,14 +9,14 @@
 #include "Adafruit_MQTT_Client.h"
 
 // WiFi credentials
-#define WIFI_SSID "   "// wifi ssid
-#define WIFI_PASS "     "//wifi password
+#define WIFI_SSID "WiFi_SSID"// wifi ssid
+#define WIFI_PASS "WiFi_Password"//wifi password
 
 // Adafruit IO
 #define AIO_SERVER      "io.adafruit.com"
 #define AIO_SERVERPORT  1883
-#define AIO_USERNAME    "     "//adafruit username
-#define AIO_KEY         "          "//adafruit key
+#define AIO_USERNAME    "Username"//adafruit username
+#define AIO_KEY         "Password"//adafruit key
 
 // MQTT setup
 WiFiClient client;
@@ -34,14 +34,16 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 Adafruit_BMP085 bmp;
 
 // LEDs
-#define RED_LED 12
-#define GREEN_LED 27
+#define RED_LED 22
+#define GREEN_LED 23
 
 void setup() {
   Serial.begin(115200);
 
+  // Setup SDA, SCL 
+  Wire.begin(15,14);
   // Setup LCD and LEDs
-  lcd.begin(16,2);
+  lcd.begin();
   lcd.backlight();
   pinMode(RED_LED, OUTPUT);
   pinMode(GREEN_LED, OUTPUT);
@@ -51,6 +53,7 @@ void setup() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(500); Serial.print(".");
   }
+
   Serial.println("WiFi connected");
 
   // Start sensor and time
