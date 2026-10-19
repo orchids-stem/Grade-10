@@ -19,7 +19,7 @@ void setup() {
   Wire.begin(SDA_PIN, SCL_PIN);
 
   // Initialize LCD
-  lcd.begin(16,2);
+  lcd.begin();
   lcd.backlight();
   lcd.setCursor(0, 0);
   lcd.print("LCD I2C Module");
