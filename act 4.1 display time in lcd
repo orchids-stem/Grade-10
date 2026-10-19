@@ -13,7 +13,7 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 void setup() {
   Serial.begin(115200);
   Wire.begin(21, 22);     // SDA 21,SCL 22 ESP32 I2C pins
-  lcd.init();
+  lcd.begin();
   lcd.backlight();
 
   WiFi.begin(ssid, password);
