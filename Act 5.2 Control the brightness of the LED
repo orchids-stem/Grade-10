@@ -2,10 +2,10 @@
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
 
-#define SSID      "     "// WIFI SSID
-#define PASS      "        "//WIFI PASSWORD
-#define USERNAME  "      "//adafruit username
-#define AIO_KEY   "    "//adafruit key
+#define SSID      "      " // WIFI SSID
+#define PASS      "      " //WIFI PASSWORD
+#define USERNAME  "      " //adafruit username
+#define AIO_KEY   "      " //adafruit key
 
 WiFiClient client;
 Adafruit_MQTT_Client mqtt(&client, "io.adafruit.com", 1883, USERNAME, AIO_KEY);
@@ -15,8 +15,9 @@ const int LED = 12;
 
 void setup() {
   Serial.begin(115200);
-  ledcSetup(0, 5000, 8);
-  ledcAttachPin(LED, 0);
+  
+  // Updated for ESP32 Core v3.x: (pin, frequency, resolution)
+  ledcAttach(LED, 5000, 8);
 
   WiFi.begin(SSID, PASS);
   while (WiFi.status() != WL_CONNECTED) delay(500);
@@ -31,7 +32,8 @@ void loop() {
   mqtt.ping();
 
   auto sub = mqtt.readSubscription(10);
-  if (sub == &brightness) ledcWrite(0, constrain(String((char*)brightness.lastread).toInt(), 0, 255));
+  if (sub == &brightness) {
+    // Updated for ESP32 Core v3.x: uses pin (LED) instead of channel (0)
+    ledcWrite(LED, constrain(String((char*)brightness.lastread).toInt(), 0, 255));
+  }
 }
-
-
